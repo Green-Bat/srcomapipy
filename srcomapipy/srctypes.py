@@ -254,7 +254,9 @@ class Run:
         elif data["level"] and data["level"]["data"]:
             self.level = Level(data["level"]["data"])
         self.video_text: str = data["videos"].get("text", "")
-        self.videos: list[str] = [link["uri"] for link in data["videos"]["links"]]
+        self.videos: list[str] = [
+            link["uri"] for link in data["videos"].get("links", [])
+        ]
         self.comment: str = data["comment"]
         self.status: str = data["status"]["status"]
         if self.status == "rejected":

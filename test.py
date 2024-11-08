@@ -9,8 +9,8 @@ def main():
     load_dotenv()
     api_key = getenv("SRCAPIKEY")
     api = SRC(api_key=api_key)
-    me = api.get_users(lookup="GreenBat")[0]
-    print(me)
+    # me = api.get_users(lookup="GreenBat")[0]
+    # print(me)
     # us = api.get_users(lookup="za9c")[0]
     # game = api.search_game("Batman: Arkham City")[0]
     # runs: list[Run] = api.get_runs(game, status="new")
