@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from collections import defaultdict
 
 
 class SRCException(Exception):
@@ -236,16 +237,24 @@ class Run:
         self.game: str = data["game"]
         self.category = data["category"]
         self.level = None
+        self.variables: list[tuple[Variable, str]] = []
         if cat:
             self.category = cat
         elif "data" in data["category"] and data["category"]["data"]:
             self.category = Category(data["category"]["data"])
+        if isinstance(self.category, Category):
+            for k, v in data["values"].items():
+                var = self.category.variables_by_id[k]
+                val = var.values_by_id[v]
+                self.variables.append((var, val))
         if lvl:
             self.level = lvl
         elif data["level"] and isinstance(data["level"], str):
             self.level = data["level"]
-        elif "data" in data["level"] and data["level"]["data"]:
+        elif data["level"] and data["level"]["data"]:
             self.level = Level(data["level"]["data"])
+        self.video_text: str = data["videos"].get("text", "")
+        self.videos: list[str] = [link["uri"] for link in data["videos"]["links"]]
         self.comment: str = data["comment"]
         self.status: str = data["status"]["status"]
         if self.status == "rejected":
@@ -310,16 +319,13 @@ class Run:
         for k, v in self.times.items():
             if v is not None and k != time_p:
                 rep += f"{k}-{v} "
-        rep += f"({self.id}) "
+        rep += f"({self.id})"
         if isinstance(self.category, Category):
-            rep += f"-{self.category.name}"
+            rep += f"-{self.category.name}-"
         if self.level and isinstance(self.level, Level):
-            rep += f"-{self.level.name}"
-        rep += "-"
-        for var, val in self.data["values"].items():
-            k = self.category.variables_by_id[var]
-            v = self.category.variables[k.name].values_by_id[val]
-            rep += f"'{k.name}'={v} "
+            rep += f"{self.level.name}-"
+        for var, val in self.variables:
+            rep += f"'{var.name}'={val} "
         if self.players:
             players = [n.name for n in self.players]
         else:
@@ -347,9 +353,10 @@ class Leaderboard:
         self.emulators = data["emulators"]
         self.video_only: bool = data["video-only"]
         self.timing: str = data["timing"]
-        self.top_runs: dict[int, Run] = {
-            run["place"]: Run(run["run"], category, level) for run in data["runs"]
-        }
+        self.top_runs: defaultdict[str, list[Run]] = defaultdict(list)
+        for run in data["runs"]:
+            self.top_runs[run["place"]].append(Run(run["run"], category, level))
+        self.top_runs: dict[str, list[Run]] = dict(self.top_runs)
 
     def wr(self) -> Run:
         return self.top_runs[1]

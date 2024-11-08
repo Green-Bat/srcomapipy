@@ -9,8 +9,9 @@ API_URL = "https://www.speedrun.com/api/v1/"
 # BUGS:
 # skip-empty for records endpoint sometimes skips non-empty boards
 # TODO:
-# [] resolve ties for leaderboards
+# [x] resolve ties for leaderboards
 # [] bulk access
+# [x] make variables accessible from runs
 
 
 class SRC:
@@ -27,7 +28,7 @@ class SRC:
 
     def post(self, uri, json: dict) -> dict:
         uri = API_URL + uri
-        r = requests.post(uri, json=json)
+        r = requests.post(uri, headers=self.headers, json=json)
         if r.status_code >= 400:
             raise SRCRunException(r.status_code, uri[len(API_URL) :], r.json())
         return r.json()["data"]
@@ -47,6 +48,8 @@ class SRC:
         if r.status_code >= 400:
             raise SRCAPIException(r.status_code, uri[len(API_URL) :], r.json())
         data: dict | list = r.json()["data"]
+        if not data:
+            raise SRCException("No data recieved, double check your request")
         if "pagination" in r.json():
             while next_link := r.json()["pagination"]["links"]:
                 if len(next_link) == 1 and next_link[0]["rel"] == "prev":
@@ -129,7 +132,11 @@ class SRC:
 
     def get_derived_games(self, game: Game) -> list[Game] | None:
         derived_uri = f"games/{game.id}/derived-games"
-        derived_games = [Game(d) for d in self.get(derived_uri)]
+        try:
+            data = self.get(derived_uri)
+        except SRCException:
+            data = []
+        derived_games = [Game(d) for d in data]
         return derived_games if len(derived_games) > 0 else None
 
     def get_series(
