@@ -4,16 +4,17 @@ with open("readme.md") as f:
     long_description = f.read()
 
 setup(
-    name="srcompy",
-    version="0.1",
+    name="srcomapipy",
+    version="0.1.1",
     description="python libray for the speedrun.com API",
-    package_dir={"": "srcompy"},
-    packages=find_packages(where="srcompy"),
+    packages=find_packages(),
+    long_description_content_type="text/markdown",
     long_description=long_description,
     author="Green-Bat",
+    url="https://github.com/Green-Bat/srcompy",
     license="MIT",
     classifiers=[
-        "Programming Language :: Python :: 3.12.1",
+        "Programming Language :: Python :: 3.12",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],

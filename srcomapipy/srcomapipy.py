@@ -11,7 +11,6 @@ API_URL = "https://www.speedrun.com/api/v1/"
 # TODO:
 # [] resolve ties for leaderboards
 # [] bulk access
-# [] submit run
 
 
 class SRC:
@@ -28,7 +27,10 @@ class SRC:
 
     def post(self, uri, json: dict) -> dict:
         uri = API_URL + uri
-        return
+        r = requests.post(uri, json=json)
+        if r.status_code >= 400:
+            raise SRCRunException(r.status_code, uri[len(API_URL) :], r.json())
+        return r.json()["data"]
 
     def put(self, uri: str, json: dict) -> dict:
         uri = API_URL + uri
@@ -282,8 +284,43 @@ class SRC:
         comment: str = "",
         splitsio: str = "",
         variables: list[tuple[Variable, str]] = None,
-    ):
-        pass
+    ) -> Run:
+        uri = "runs"
+        _variables = {}
+        _players = []
+        for p in players:
+            if isinstance(p, User):
+                _players.append({"rel": "user", "id": p.id})
+            elif isinstance(p, Guest):
+                _players.append({"rel": "guest", "id": p.name})
+        for v, val in variables:
+            _type = "user-defined"
+            if not v.user_defined:
+                _type = "pre-defined"
+                val = v.values[val]
+            _variables[v.id] = {"type": _type, "value": val}
+        payload = {
+            "run": {
+                "category": category_id,
+                "level": level_id,
+                "date": date,
+                "region": region_id,
+                "platform": platform_id,
+                "verified": verified,
+                "times": {
+                    "realtime": times["realtime"],
+                    "realtime_noloads": times["realtime_noloads"],
+                    "ingame": times["ingame"],
+                },
+                "players": _players,
+                "emulated": emulated,
+                "video": video_link,
+                "comment": comment,
+                "splitsio": splitsio,
+                "variables": _variables,
+            }
+        }
+        return Run(self.post(uri, json=payload))
 
     def delte_run(self, run_id: str) -> Run:
         uri = f"{API_URL}runs/{run_id}"
@@ -302,15 +339,15 @@ def main():
     api = SRC(api_key=api_key)
     # me = api.get_users(lookup="GreenBat")[0]
     # us = api.get_users(lookup="za9c")[0]
-    game = api.search_game("Batman: Arkham City")[0]
-    runs: list[Run] = api.get_runs(game, status="new")
-    print(runs)
-    for run in runs:
-        for p in run.players:
-            if p.name == "mahkra":
-                success = api.change_run_status(run, status="verified")
-    print(success)
-    cat = game.categories["Fastest"]
+    # game = api.search_game("Batman: Arkham City")[0]
+    # runs: list[Run] = api.get_runs(game, status="new")
+    # print(runs)
+    # for run in runs:
+    #     for p in run.players:
+    #         if p.name == "mahkra":
+    #             success = api.change_run_status(run, status="verified")
+    # print(success)
+    # cat = game.categories["Fastest"]
     # print(api.generic_get(endpoint="platforms"))
     # lvl = game.levels["Wayne Manor"]
     # lbrd = api.get_leaderboard(
