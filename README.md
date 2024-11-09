@@ -1,6 +1,9 @@
 # srcompy
 A python library for the speedrun.com API
- 
+## Install
+```python
+pip install srcomapipy
+```
 ## Examples
 ### Find a game:
 ```python
