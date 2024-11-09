@@ -361,6 +361,8 @@ class Leaderboard:
         self.top_runs: dict[str, list[Run]] = dict(self.top_runs)
 
     def wr(self) -> Run:
+        if len(self.top_runs[1]) == 1:
+            return self.top_runs[1][0]
         return self.top_runs[1]
 
     def __repr__(self) -> str:

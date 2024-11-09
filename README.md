@@ -24,7 +24,7 @@ var1 = cat.variables["Version"]
 var2 = cat.variables["Difficulty"]
 lb = api.get_leaderboard(bac, cat, variables=[(var1, "PC"), (var2, "NG+")])
 print(lb.wr())
->>> [<Run: RTA-14:30.000 (yox7rk5y)-Any%-'Version'=PC 'Difficulty'=NG+ by Bepsi>]
+>>> <Run: RTA-14:30.000 (yox7rk5y)-Any%-'Version'=PC 'Difficulty'=NG+ by Bepsi>
 ```
 ### Search for specific User:
 ```python

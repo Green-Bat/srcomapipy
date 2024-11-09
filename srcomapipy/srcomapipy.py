@@ -9,9 +9,8 @@ API_URL = "https://www.speedrun.com/api/v1/"
 # BUGS:
 # skip-empty for records endpoint sometimes skips non-empty boards
 # TODO:
-# [x] resolve ties for leaderboards
 # [] bulk access
-# [x] make variables accessible from runs
+# [] handle extra embeds better
 
 
 class SRC:
@@ -48,8 +47,6 @@ class SRC:
         if r.status_code >= 400:
             raise SRCAPIException(r.status_code, uri[len(API_URL) :], r.json())
         data: dict | list = r.json()["data"]
-        if not data:
-            raise SRCException("No data recieved, double check your request")
         if "pagination" in r.json():
             while next_link := r.json()["pagination"]["links"]:
                 if len(next_link) == 1 and next_link[0]["rel"] == "prev":
@@ -65,6 +62,7 @@ class SRC:
         return data
 
     def get_current_profile(self) -> User:
+        """Returns the currently authenticated User. Requires API Key"""
         return User(self.get("profile"))
 
     def get_variable(self, var_id: str):
@@ -73,8 +71,13 @@ class SRC:
     def generic_get(
         self, endpoint: str, id: str = "", orderby: Literal["name", "released"] = "name"
     ) -> SRCType | list[SRCType]:
-        """Used to get any resource that inherits from SRCType this includes:
+        """Used to get any of the following resources:
         Developer, Publisher, Genre, GameType, Engine, Platform, Region
+        Args:
+            endpoint: name of the endpoint
+            id: ID of the desired resource
+            orderby: "name", sorts by name.
+                "released", sorts by release date, only available for the "platforms" endpoint
         """
         srcobj = TYPES[endpoint]
         if id:
@@ -84,11 +87,16 @@ class SRC:
     def get_notifications(
         self, direction: Literal["asc", "desc"] = "desc"
     ) -> list[Notification]:
+        """Gets the notifications for the current authenticated user.
+        Requires API Key
+        Args:
+            direction: sorts ascendingly (oldest first) or descendingly (newest first)
+        """
         uri = "notifications"
         payload = {"orderby": "created", "direction": direction}
         return [Notification(n) for n in self.get(uri, payload)]
 
-    def unpack_embeds(
+    def _unpack_embeds(
         self, data: dict, embeds: str, ignore: list[str] = None
     ) -> dict[dict]:
         """Extracts embedded resources from data"""
@@ -102,6 +110,12 @@ class SRC:
         return unrolled
 
     def search_game(self, name: str) -> list[Game]:
+        """Searches for a game based on the name given
+        Args:
+            name: name of game to search for
+        Returns:
+            list[Game]: list of games found
+        """
         uri = "games"
         payload = {"name": name}
         games = []
@@ -111,6 +125,12 @@ class SRC:
         return games
 
     def get_game(self, game_id: str, embeds: list[str] = None) -> Game:
+        """Gets a game based on ID
+        Args:
+            game_id: ID of the game
+            embeds: list of resources to embed,
+                categories/levels and their variables are embedded by default
+        """
         if embeds is None:
             embeds = []
         # embed categories and their variables and levels by default
@@ -119,7 +139,7 @@ class SRC:
         uri = f"games/{game_id}"
         payload = {"embed": embedding}
         data = self.get(uri, payload)
-        unpacked_embeds = self.unpack_embeds(
+        unpacked_embeds = self._unpack_embeds(
             data, embedding, ignore=["categories", "levels"]
         )
         game = Game(data)
@@ -130,7 +150,7 @@ class SRC:
             game.embeds.append({embed: unpacked_embeds[embed]["data"]})
         return game
 
-    def get_derived_games(self, game: Game) -> list[Game] | None:
+    def get_derived_games(self, game: Game) -> Optional[list[Game]]:
         derived_uri = f"games/{game.id}/derived-games"
         try:
             data = self.get(derived_uri)
@@ -175,6 +195,23 @@ class SRC:
         orderby: Literal["name.int", "name.jap", "signup", "role"] = "name.int",
         direction: Literal["asc", "desc"] = "desc",
     ) -> User | list[User]:
+        """Gets user or users
+        Args:
+            user_id: will return a single user based on the ID
+            lookup: does a cas-sensitive exact-string match search across the site
+                including all URLs and socials.
+                If given all remaining arguments are ignored
+                except for direction and orderby
+            name: case-sensitive search across site users/urls
+            twitch,hitbox,twitter,speedrunslive:
+                search by the username of the respective social media
+            orderby: determines the way the users are sorted,\n
+                name.int sorts by international username\n
+                name.jap sorts by japanese username\n
+                signaup sorts by signup date\n
+                role sorts by role
+            direction: sorts either ascendingly or descendingly
+        """
         uri = "users"
         if user_id:
             uri += f"/{user_id}"
@@ -258,6 +295,12 @@ class SRC:
     def change_run_status(
         self, run: Run, status: Literal["verified", "rejected"], reason: str = ""
     ) -> Run:
+        """Changes the status of a run to either "verified" or "rejected"
+        Args:
+            run: the run to be changed
+            status: the new status of the run
+            reason: the rejection reason, not required if status="verified"
+        """
         if run.status == status:
             raise SRCException(f"Given run is already {run.status}")
         uri = f"runs/{run.id}/status"
