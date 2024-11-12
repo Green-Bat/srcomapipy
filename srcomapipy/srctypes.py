@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from collections import defaultdict
+from typing import Optional
 
 
 class SRCException(Exception):
@@ -127,7 +128,7 @@ class Guest:
 class Notification:
     def __init__(self, data: dict):
         self.id: str = data["id"]
-        self.creation_date = datetime.fromisoformat(data["created"])
+        self.creation_date: datetime = datetime.fromisoformat(data["created"])
         self.status: str = data["status"]
         self.text: str = data["text"]
         self.item: str = data["item"]["rel"]
@@ -209,9 +210,9 @@ class Game:
         self.weblink: str = data["weblink"]
         if not bulk:
             self.release_year: str = data["released"]
-            self.release_date = datetime.fromisoformat(data["release-date"])
+            self.release_date: datetime = datetime.fromisoformat(data["release-date"])
             if data["created"]:
-                self.creation_date = datetime.fromisoformat(data["created"])
+                self.creation_date: datetime = datetime.fromisoformat(data["created"])
             self.ruleset: dict = data["ruleset"]
         if "categories" in data:
             categories = [Category(c) for c in data["categories"]["data"]]
@@ -261,33 +262,32 @@ class Run:
         self.status: str = data["status"]["status"]
         if self.status == "rejected":
             self.reason: str = data["status"]["reason"]
+        # --times--
         self._primary_time = timedelta(seconds=data["times"]["primary_t"])
-        self.time = self.format_td(self._primary_time)
-        self.realtime = None
-        self.ingametime = None
-        self.loadremovedtime = None
-        if data["times"]["realtime_t"]:
-            self.realtime = self.format_td(
-                timedelta(seconds=data["times"]["realtime_t"])
-            )
-        if data["times"]["ingame_t"]:
-            self.ingametime = self.format_td(
-                timedelta(seconds=data["times"]["ingame_t"])
-            )
-        if data["times"]["realtime_noloads_t"]:
-            self.loadremovedtime = self.format_td(
-                timedelta(seconds=data["times"]["realtime_noloads_t"])
-            )
+        self.time: str = self.format_td(self._primary_time)
+        self.realtime: str = None
+        self.ingametime: str = None
+        self.loadremovedtime: str = None
+        if rta := data["times"]["realtime_t"]:
+            self.realtime = self.format_td(timedelta(seconds=rta))
+        if igt := data["times"]["ingame_t"]:
+            self.ingametime = self.format_td(timedelta(seconds=igt))
+        if lrt := data["times"]["realtime_noloads_t"]:
+            self.loadremovedtime = self.format_td(timedelta(seconds=lrt))
         self.times = {
-            "RTA": self.realtime,
-            "IGT": self.ingametime,
-            "LRT": self.loadremovedtime,
+            "RTA": rta,
+            "IGT": igt,
+            "LRT": lrt,
         }
+        # --dates--
         if "verify-date" in data["status"]:
-            self.verify_date = datetime.fromisoformat(data["status"]["verify-date"])
-        self.date = datetime.fromisoformat(data["date"])
-        self.submission_date = datetime.fromisoformat(data["submitted"])
-        self.players = None
+            self.verify_date: datetime = datetime.fromisoformat(
+                data["status"]["verify-date"]
+            )
+        self.date: datetime = datetime.fromisoformat(data["date"])
+        self.submission_date: datetime = datetime.fromisoformat(data["submitted"])
+
+        self.players: list[User] = None
         if player:
             self.players = [player]
         elif "data" in data["players"]:
@@ -351,8 +351,8 @@ class Leaderboard:
         self.category = category
         self.level = level
         self.vars = vars
-        self.platform = data["platform"]
-        self.emulators = data["emulators"]
+        self.platform: str = data["platform"]
+        self.emulators: Optional[bool] = data.get("emulators", None)
         self.video_only: bool = data["video-only"]
         self.timing: str = data["timing"]
         self.top_runs: defaultdict[str, list[Run]] = defaultdict(list)

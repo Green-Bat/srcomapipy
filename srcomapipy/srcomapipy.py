@@ -1,7 +1,7 @@
 import requests
 from typing import Literal, Optional
-from .srctypes import *
 from datetime import date
+from .srctypes import *
 
 API_URL = "https://www.speedrun.com/api/v1/"
 

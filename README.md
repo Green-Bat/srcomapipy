@@ -1,4 +1,4 @@
-# srcompy
+# srcomapipy
 A python library for the speedrun.com API
 ## Install
 ```python
@@ -10,7 +10,7 @@ pip install srcomapipy
 from srcompaipy.srcomapipy import SRC
 import srcomapipy.srctypes as st
 
-api = SRC(user_agent="usrename")
+api = SRC(user_agent="username")
 # search for a game
 games: list[st.Game] = api.search_game("Batman: Arkham City")
 print(games)
@@ -19,7 +19,7 @@ print(games)
 bac: st.Game = games[0]
 runs: list[st.Run] = api.get_runs(game=bac, status="new")
 ```
-### Get WR of a specific Leaderboard:
+### Get WR of a specific leaderboard:
 ```python
 # get category and it's variables
 cat = bac.categories["Any%"]
@@ -29,7 +29,7 @@ lb = api.get_leaderboard(bac, cat, variables=[(var1, "PC"), (var2, "NG+")])
 print(lb.wr())
 >>> <Run: RTA-14:30.000 (yox7rk5y)-Any%-'Version'=PC 'Difficulty'=NG+ by Bepsi>
 ```
-### Search for specific User:
+### Search for specific user:
 ```python
 users: list[st.User] = api.get_users(lookup="username")
 ```
@@ -37,10 +37,10 @@ users: list[st.User] = api.get_users(lookup="username")
 ```python
 try:
     game: st.Game = api.get_game(game_id="id")
-except SRCAPIException as e:
+except st.SRCAPIException as e:
     print(f"Error: {e.message}")
 ```
-### Change Run Status (Requires API Key):
+### Change run status (Requires API Key of a moderator):
 ```python
 api = SRC(user_agent="username", api_key="api-key-here")
 bac: st.Game = api.search_game("Batman: Arkham City")[0]
