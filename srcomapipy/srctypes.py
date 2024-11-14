@@ -208,12 +208,22 @@ class Game:
         self.name: str = data["names"]["international"]
         self.abv: str = data["abbreviation"]
         self.weblink: str = data["weblink"]
-        if not bulk:
-            self.release_year: str = data["released"]
-            self.release_date: datetime = datetime.fromisoformat(data["release-date"])
-            if data["created"]:
-                self.creation_date: datetime = datetime.fromisoformat(data["created"])
-            self.ruleset: dict = data["ruleset"]
+        if bulk:
+            return
+        self.boosts_received: int = data["boostReceived"]
+        self.distinct_donors: int = data["boostDistinctDonors"]
+        self.release_year: str = data["released"]
+        self.release_date: datetime = datetime.fromisoformat(data["release-date"])
+        if data["created"]:
+            self.creation_date: datetime = datetime.fromisoformat(data["created"])
+        self.ruleset: dict = data["ruleset"]
+        self.platforms: list[str] = data["platforms"]
+        self.regions: list[str] = data["regions"]
+        self.genres: list[str] = data["genres"]
+        self.engines: list[str] = data["engines"]
+        self.devs: list[str] = data["developers"]
+        self.publishers: list[str] = data["publishers"]
+        self.moderators: dict[str, str] = data["moderators"]
         if "categories" in data:
             categories = [Category(c) for c in data["categories"]["data"]]
             self.categories: dict[str, Category] = {c.name: c for c in categories}

@@ -9,7 +9,8 @@ API_URL = "https://www.speedrun.com/api/v1/"
 # BUGS:
 # skip-empty for records endpoint sometimes skips non-empty boards
 # TODO:
-# [] bulk access
+# [x] bulk access
+# [] save and load from file
 # [] handle extra embeds better
 
 
@@ -18,7 +19,7 @@ class SRC:
     DATE_FORMAT = "%d-%m-%y"
     DATETIME_FORMAT = f"{DATE_FORMAT} {TIME_FORMAT}"
 
-    def __init__(self, api_key: str = "", user_agent: str = "Green-Bat/srcompy"):
+    def __init__(self, api_key: str = "", user_agent: str = "Green-Bat/srcomapipy"):
         self.api_key = api_key
         self.user_agent = user_agent
         self.headers = {"User-Agent": user_agent}
@@ -39,10 +40,12 @@ class SRC:
             raise SRCAPIException(r.status_code, uri[len(API_URL) :], r.json())
         return r.json()["data"]
 
-    def get(self, uri: str, params: dict = None) -> dict | list:
+    def get(
+        self, uri: str, params: dict = None, bulk: bool = False
+    ) -> Optional[dict | list]:
         uri = API_URL + uri
         if params:
-            params["max"] = 200
+            params["max"] = 200 if not bulk else 1000
         r = requests.get(uri, headers=self.headers, params=params)
         if r.status_code >= 400:
             raise SRCAPIException(r.status_code, uri[len(API_URL) :], r.json())
@@ -72,11 +75,11 @@ class SRC:
         self, endpoint: str, id: str = "", orderby: Literal["name", "released"] = "name"
     ) -> SRCType | list[SRCType]:
         """Used to get any of the following resources:
-        Developer, Publisher, Genre, GameType, Engine, Platform, Region
+        developers, publishers, genres, gametypes, engines, platforms, regions
         Args:
             endpoint: name of the endpoint
             id: ID of the desired resource
-            orderby: "name", sorts by name.
+            orderby: "name", sorts by name alphanumerically.
                 "released", sorts by release date, only available for the "platforms" endpoint
         """
         srcobj = TYPES[endpoint]
@@ -100,29 +103,66 @@ class SRC:
         self, data: dict, embeds: str, ignore: list[str] = None
     ) -> dict[dict]:
         """Extracts embedded resources from data"""
-        unrolled = {}
+        unpacked = {}
         embeds = embeds.split(",")
         for embed in embeds:
             embed = embed.split(".")
             if ignore and embed[0] in ignore:
                 continue
-            unrolled[embed[0]] = data.pop(embed[0])
-        return unrolled
+            unpacked[embed[0]] = data.pop(embed[0])
+        return unpacked
 
-    def search_game(self, name: str) -> list[Game]:
-        """Searches for a game based on the name given
+    def search_game(
+        self,
+        name: str,
+        abv: str = "",
+        release_year: str = "",
+        mod_id: str = "",
+        gametype_id: str = "",
+        platform_id: str = "",
+        region_id: str = "",
+        genre_id: str = "",
+        engine_id: str = "",
+        dev_id: str = "",
+        publisher_id: str = "",
+        orderby: Literal[
+            "name.int", "name.jap", "abbreviation", "released", "created", "similarity"
+        ] = "",
+        direction: Literal["asc", "desc"] = "asc",
+        bulk: bool = False,
+    ) -> list[Game]:
+        """Searches for a game based on the arguments, categories and levels
+        are embedded by default along with their variables except for bulk mode
         Args:
             name: name of game to search for
-        Returns:
-            list[Game]: list of games found
+            abv: abbreviation of the game
+            orderby: determines sorting method, similarity is default if name is given
+                otherwise name.int is default
+            direction: also determines sorting, ascending or descending
+            bulk: flag for bulk mode
         """
         uri = "games"
-        payload = {"name": name}
-        games = []
-        r = self.get(uri, payload)
-        for game in r:
-            games.append(self.get_game(game["id"]))
-        return games
+        if name and not orderby:
+            orderby = "similarity"
+        payload = {
+            "name": name,
+            "abbreviation": abv,
+            "released": release_year,
+            "moderator": mod_id,
+            "gametype": gametype_id,
+            "platform": platform_id,
+            "region": region_id,
+            "genre": genre_id,
+            "engine": engine_id,
+            "developer": dev_id,
+            "publisher": publisher_id,
+            "orderby": orderby,
+            "direction": direction,
+            "embeds": "categories.variables,levels.variables",
+            "_bulk": bulk,
+        }
+        payload = {k: v for k, v in payload.items() if v}
+        return [Game(game, bulk) for game in self.get(uri, payload, bulk)]
 
     def get_game(self, game_id: str, embeds: list[str] = None) -> Game:
         """Gets a game based on ID
@@ -134,28 +174,22 @@ class SRC:
         if embeds is None:
             embeds = []
         # embed categories and their variables and levels by default
-        embeds = list(set(embeds + ["categories.variables", "levels.variables"]))
-        embedding = ",".join(embeds)
+        embeds = ",".join(set(embeds + ["categories.variables", "levels.variables"]))
         uri = f"games/{game_id}"
-        payload = {"embed": embedding}
+        payload = {"embed": embeds}
         data = self.get(uri, payload)
         unpacked_embeds = self._unpack_embeds(
-            data, embedding, ignore=["categories", "levels"]
+            data, embeds, ignore=["categories", "levels"]
         )
         game = Game(data)
         game.derived_games = self.get_derived_games(game)
-        # unpacked_embeds.pop("categories")
-        # unpacked_embeds.pop("levels")
         for embed in unpacked_embeds:
             game.embeds.append({embed: unpacked_embeds[embed]["data"]})
         return game
 
     def get_derived_games(self, game: Game) -> Optional[list[Game]]:
         derived_uri = f"games/{game.id}/derived-games"
-        try:
-            data = self.get(derived_uri)
-        except SRCException:
-            data = []
+        data = self.get(derived_uri)
         derived_games = [Game(d) for d in data]
         return derived_games if len(derived_games) > 0 else None
 
@@ -165,7 +199,9 @@ class SRC:
         name: str = "",
         abbreviation: str = "",
         mod: Moderator = None,
-        orderby: Literal["", "name.int", "name.jap", "abbreviation", "created"] = "",
+        orderby: Literal[
+            "name.int", "name.jap", "abbreviation", "created"
+        ] = "name.int",
         direction: Literal["asc", "desc"] = "desc",
     ) -> Series | list[Series]:
         uri = "series"
@@ -208,7 +244,7 @@ class SRC:
             orderby: determines the way the users are sorted,\n
                 name.int sorts by international username\n
                 name.jap sorts by japanese username\n
-                signaup sorts by signup date\n
+                signup sorts by signup date\n
                 role sorts by role
             direction: sorts either ascendingly or descendingly
         """

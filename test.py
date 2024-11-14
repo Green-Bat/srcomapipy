@@ -15,11 +15,6 @@ def main():
     # game = api.search_game("Batman: Arkham City")[0]
     # runs: list[Run] = api.get_runs(game, status="new")
     # print(runs)
-    # for run in runs:
-    #     for p in run.players:
-    #         if p.name == "mahkra":
-    #             success = api.change_run_status(run, status="verified")
-    # print(success)
     # cat = game.categories["Fastest"]
     # print(api.generic_get(endpoint="platforms"))
     # lvl = game.levels["Wayne Manor"]
