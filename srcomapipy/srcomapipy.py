@@ -9,7 +9,7 @@ API_URL = "https://www.speedrun.com/api/v1/"
 # BUGS:
 # skip-empty for records endpoint sometimes skips non-empty boards
 # TODO:
-# [x] expand get_runs
+# [x] get games of series
 # [] save and load from file
 # [] cache
 
@@ -85,7 +85,7 @@ class SRC:
         return Variable(self.get(f"variables/{var_id}"))
 
     def get_guest(self, name: str) -> Guest:
-        return Guest(self.get(f"guests/{name}"))    
+        return Guest(self.get(f"guests/{name}"))
 
     def generic_get(
         self, endpoint: str, id: str = "", orderby: Literal["name", "released"] = "name"
@@ -118,7 +118,9 @@ class SRC:
 
     def search_game(
         self,
-        name: str,
+        name: str = "",
+        *,
+        series: Series = None,
         abv: str = "",
         release_year: str = "",
         mod_id: str = "",
@@ -140,6 +142,7 @@ class SRC:
         are awlays embedded along with their variables except when using bulk mode
         Args:
             name: name of game to search for
+            series: will limit search to games from this specific series
             abv: abbreviation of the game
             orderby: determines sorting method, similarity is default if name is given
                 otherwise name.int is default
@@ -148,6 +151,8 @@ class SRC:
             bulk: flag for bulk mode
         """
         uri = "games"
+        if series:
+            uri = f"series/{series.id}/{uri}"
         if name and not orderby:
             orderby = "similarity"
         if not embeds:
@@ -211,7 +216,7 @@ class SRC:
         orderby: Literal[
             "name.int", "name.jap", "abbreviation", "created"
         ] = "name.int",
-        direction: Literal["asc", "desc"] = "desc",
+        direction: Literal["asc", "desc"] = "asc",
     ) -> Series | list[Series]:
         uri = "series"
         if series_id:
@@ -238,7 +243,7 @@ class SRC:
         twitter: str = "",
         speedrunslive: str = "",
         orderby: Literal["name.int", "name.jap", "signup", "role"] = "name.int",
-        direction: Literal["asc", "desc"] = "desc",
+        direction: Literal["asc", "desc"] = "asc",
     ) -> User | list[User]:
         """Gets user or users
         Args:
@@ -247,7 +252,7 @@ class SRC:
                 including all URLs and socials.
                 If given all remaining arguments are ignored
                 except for direction and orderby
-            name: case-sensitive search across site users/urls
+            name: case-insensitive search across site users/urls
             twitch,hitbox,twitter,speedrunslive:
                 search by the username of the respective social media
             orderby: determines the way the users are sorted,\n

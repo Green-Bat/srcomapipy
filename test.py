@@ -11,6 +11,7 @@ def main():
     api = SRC(api_key=api_key)
     me = api.get_current_profile()
     print(me)
+    print(api.get_users(name="BatBo"))
     game = api.search_game("Batman: Arkham City")[0]
     runs: list[Run] = api.get_runs(game.id, status="new")
     print(runs)
@@ -21,14 +22,11 @@ def main():
     )
     print(lbrd, lbrd.top_runs)
     for name, cat in game.categories.items():
-        print(name)
+        print(f"category: {name}")
         for _, v in cat.variables.items():
-            print(f"{v} {v.mandatory} {v.obsoletes=} {v.is_subcategory=}")
-    runs: list[Run] = api.get_runs(game, category_id=cat.id)
+            print(f"{v} {v.mandatory=} {v.obsoletes=} {v.is_subcategory}")
     series = api.get_series(name="Batman")
     print(series)
-    # for run in runs:
-    #     print(run)
 
 
 if __name__ == "__main__":

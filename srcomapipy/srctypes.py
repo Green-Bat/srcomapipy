@@ -97,7 +97,7 @@ class Series:
     def __repr__(self) -> str:
         rep = f"<Series: {self.name}; moderated by "
         mods = ", ".join([m.name for m in self.moderators])
-        return rep + f"{mods}>"
+        return f"{rep}{mods}>"
 
 
 class User:
