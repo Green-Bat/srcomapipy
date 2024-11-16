@@ -12,7 +12,7 @@ def main():
     me = api.get_current_profile()
     print(me)
     game = api.search_game("Batman: Arkham City")[0]
-    runs: list[Run] = api.get_runs(game, status="new")
+    runs: list[Run] = api.get_runs(game.id, status="new")
     print(runs)
     cat = game.categories["Fastest"]
     lvl = game.levels["Meltdown Mayhem"]
@@ -24,7 +24,9 @@ def main():
         print(name)
         for _, v in cat.variables.items():
             print(f"{v} {v.mandatory} {v.obsoletes=} {v.is_subcategory=}")
-    runs: list[Run] = api.get_runs(game, category=cat.id)
+    runs: list[Run] = api.get_runs(game, category_id=cat.id)
+    series = api.get_series(name="Batman")
+    print(series)
     # for run in runs:
     #     print(run)
 

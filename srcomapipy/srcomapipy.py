@@ -9,7 +9,7 @@ API_URL = "https://www.speedrun.com/api/v1/"
 # BUGS:
 # skip-empty for records endpoint sometimes skips non-empty boards
 # TODO:
-# [] expand get_runs
+# [x] expand get_runs
 # [] save and load from file
 # [] cache
 
@@ -68,8 +68,24 @@ class SRC:
         """Returns the currently authenticated User. Requires API Key"""
         return User(self.get("profile")) if self.api_key else None
 
+    def get_notifications(
+        self, direction: Literal["asc", "desc"] = "desc"
+    ) -> Optional[list[Notification]]:
+        """Gets the notifications for the current authenticated user. Requires API Key
+        Args:
+            direction: sorts ascendingly (oldest first) or descendingly (newest first)
+        """
+        if not self.api_key:
+            return None
+        uri = "notifications"
+        payload = {"orderby": "created", "direction": direction}
+        return [Notification(n) for n in self.get(uri, payload)]
+
     def get_variable(self, var_id: str):
         return Variable(self.get(f"variables/{var_id}"))
+
+    def get_guest(self, name: str) -> Guest:
+        return Guest(self.get(f"guests/{name}"))    
 
     def generic_get(
         self, endpoint: str, id: str = "", orderby: Literal["name", "released"] = "name"
@@ -86,20 +102,6 @@ class SRC:
         if id:
             return srcobj(self.get(endpoint + f"/{id}"))
         return [srcobj(srct) for srct in self.get(endpoint, {"orderby": orderby})]
-
-    def get_notifications(
-        self, direction: Literal["asc", "desc"] = "desc"
-    ) -> Optional[list[Notification]]:
-        """Gets the notifications for the current authenticated user.
-        Requires API Key
-        Args:
-            direction: sorts ascendingly (oldest first) or descendingly (newest first)
-        """
-        if not self.api_key:
-            return None
-        uri = "notifications"
-        payload = {"orderby": "created", "direction": direction}
-        return [Notification(n) for n in self.get(uri, payload)]
 
     def _unpack_embeds(
         self, data: dict, embeds: str, ignore: list[str] = None
@@ -205,7 +207,7 @@ class SRC:
         series_id: str = "",
         name: str = "",
         abbreviation: str = "",
-        mod: Moderator = None,
+        mod_id: str = "",
         orderby: Literal[
             "name.int", "name.jap", "abbreviation", "created"
         ] = "name.int",
@@ -218,7 +220,7 @@ class SRC:
         payload = {
             "name": name,
             "abbreviation": abbreviation,
-            "moderator": mod.id,
+            "moderator": mod_id,
             "orderby": orderby,
             "direction": direction,
             "embed": "moderators",
@@ -327,8 +329,17 @@ class SRC:
 
     def get_runs(
         self,
-        game: Game,
+        game_id: str = "",
         run_id: str = "",
+        status: Literal["new", "verified", "rejected"] = "verified",
+        category_id: str = "",
+        level_id: str = "",
+        examiner: str = "",
+        user_id: str = "",
+        guest: str = "",
+        platform_id: str = "",
+        region_id: str = "",
+        emulated: Optional[bool] = None,
         orderby: Literal[
             "game",
             "category",
@@ -342,8 +353,6 @@ class SRC:
             "verify-date",
         ] = "game",
         direction: Literal["asc", "desc"] = "desc",
-        status: Literal["new", "verified", "rejected"] = "verified",
-        **queries,
     ) -> Run | list[Run]:
         uri = "runs"
         payload = {"embed": "players,category.variables,level.variables"}
@@ -352,13 +361,21 @@ class SRC:
             return Run(self.get(uri, payload))
         payload.update(
             {
-                "game": game.id,
+                "status": status,
+                "game": game_id,
+                "category": category_id,
+                "level": level_id,
+                "examiner": examiner,
+                "user": user_id,
+                "guest": guest,
+                "platform": platform_id,
+                "region": region_id,
+                "emulated": emulated,
                 "orderby": orderby,
                 "direction": direction,
-                "status": status,
             }
         )
-        payload.update({k: v for k, v in queries.items() if v and k not in payload})
+        payload = {k: v for k, v in payload.items() if v}
         data = self.get(uri, payload)
         runs = [Run(r) for r in data]
         return sorted(runs, key=lambda r: r._primary_time)
@@ -377,7 +394,7 @@ class SRC:
         uri = f"runs/{run.id}/status"
         payload = {"status": {"status": status}}
         if status == "rejected":
-            payload["status"].update({"reason": reason})
+            payload["status"]["reason"] = reason
         return Run(self.put(uri, json=payload))
 
     def change_run_players(self, run: Run, players: list[User | Guest]) -> Run:

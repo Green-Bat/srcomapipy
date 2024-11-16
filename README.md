@@ -17,7 +17,7 @@ print(games)
 >>> [<Game: Batman: Arkham City (x3692ldl)>, <Game: Batman: Arkham City Lockdown (9d3808w1)>, <Game: Batman: Arkham City Category Extensions (m1mnnv3d)>]
 # get newly submitted runs for a game
 bac: st.Game = games[0]
-runs: list[st.Run] = api.get_runs(game=bac, status="new")
+runs: list[st.Run] = api.get_runs(game_id=bac.id, status="new")
 ```
 ### Get WR of a specific leaderboard:
 ```python
@@ -45,7 +45,7 @@ except st.SRCAPIException as e:
 api = SRC(user_agent="username", api_key="api-key-here")
 bac: st.Game = api.search_game("Batman: Arkham City")[0]
 # reject a new run
-runs: list[st.Run] = api.get_runs(game=bac, status="new")
+runs: list[st.Run] = api.get_runs(game_id=bac.id, status="new")
 # returns the run that was changed
 run: st.Run = api.change_run_status(runs[0], status="rejected", reason="reason")
 ```

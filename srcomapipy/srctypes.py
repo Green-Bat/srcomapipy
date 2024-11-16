@@ -86,14 +86,18 @@ class Series:
         self.data = data
         self.id: str = data["id"]
         self.name: str = data["names"]["international"]
-        self.abv: str = data["abreviation"]
+        self.abv: str = data["abbreviation"]
         self.weblink: str = data["weblink"]
-        self.created = datetime.fromisoformat(data["created"])
+        self.created = None
+        if data["created"]:
+            self.created = datetime.fromisoformat(data["created"])
         if data["moderators"]["data"]:
             self.moderators = [Moderator(m) for m in data["moderators"]["data"]]
 
     def __repr__(self) -> str:
-        return f"<Series: {self.name}>"
+        rep = f"<Series: {self.name}; moderated by "
+        mods = ", ".join([m.name for m in self.moderators])
+        return rep + f"{mods}>"
 
 
 class User:
