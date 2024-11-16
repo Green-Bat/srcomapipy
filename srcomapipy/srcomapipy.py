@@ -9,9 +9,9 @@ API_URL = "https://www.speedrun.com/api/v1/"
 # BUGS:
 # skip-empty for records endpoint sometimes skips non-empty boards
 # TODO:
-# [x] bulk access
+# [] expand get_runs
 # [] save and load from file
-# [] handle extra embeds better
+# [] cache
 
 
 class SRC:
@@ -64,9 +64,9 @@ class SRC:
                 data.extend(r.json()["data"])
         return data
 
-    def get_current_profile(self) -> User:
+    def get_current_profile(self) -> Optional[User]:
         """Returns the currently authenticated User. Requires API Key"""
-        return User(self.get("profile"))
+        return User(self.get("profile")) if self.api_key else None
 
     def get_variable(self, var_id: str):
         return Variable(self.get(f"variables/{var_id}"))
@@ -89,12 +89,14 @@ class SRC:
 
     def get_notifications(
         self, direction: Literal["asc", "desc"] = "desc"
-    ) -> list[Notification]:
+    ) -> Optional[list[Notification]]:
         """Gets the notifications for the current authenticated user.
         Requires API Key
         Args:
             direction: sorts ascendingly (oldest first) or descendingly (newest first)
         """
+        if not self.api_key:
+            return None
         uri = "notifications"
         payload = {"orderby": "created", "direction": direction}
         return [Notification(n) for n in self.get(uri, payload)]
@@ -128,22 +130,27 @@ class SRC:
         orderby: Literal[
             "name.int", "name.jap", "abbreviation", "released", "created", "similarity"
         ] = "",
-        direction: Literal["asc", "desc"] = "asc",
+        direction: Literal["asc", "desc"] = "desc",
+        embeds: list[str] = None,
         bulk: bool = False,
     ) -> list[Game]:
         """Searches for a game based on the arguments, categories and levels
-        are embedded by default along with their variables except for bulk mode
+        are awlays embedded along with their variables except when using bulk mode
         Args:
             name: name of game to search for
             abv: abbreviation of the game
             orderby: determines sorting method, similarity is default if name is given
                 otherwise name.int is default
             direction: also determines sorting, ascending or descending
+            embeds: list of resources to embed e.g. ["platforms","moderators"]
             bulk: flag for bulk mode
         """
         uri = "games"
         if name and not orderby:
             orderby = "similarity"
+        if not embeds:
+            embeds = []
+        embeds = ",".join(set(embeds + ["categories.variables", "levels.variables"]))
         payload = {
             "name": name,
             "abbreviation": abv,
@@ -158,7 +165,7 @@ class SRC:
             "publisher": publisher_id,
             "orderby": orderby,
             "direction": direction,
-            "embeds": "categories.variables,levels.variables",
+            "embed": embeds,
             "_bulk": bulk,
         }
         payload = {k: v for k, v in payload.items() if v}
@@ -169,7 +176,7 @@ class SRC:
         Args:
             game_id: ID of the game
             embeds: list of resources to embed,
-                categories/levels and their variables are embedded by default
+                categories/levels and their variables are always embedded
         """
         if embeds is None:
             embeds = []
@@ -207,7 +214,7 @@ class SRC:
         uri = "series"
         if series_id:
             uri += f"/{series_id}"
-            return Series(self.get(uri))
+            return Series(self.get(uri, {"embed": "moderators"}))
         payload = {
             "name": name,
             "abbreviation": abbreviation,
@@ -275,15 +282,32 @@ class SRC:
         top: int = 3,
         video_only: bool = False,
         variables: list[tuple[Variable, str]] = None,
-        **queries,
+        date: str = date.today().isoformat(),
+        emulators: Optional[bool] = None,
+        timing: Optional[Literal["realtime", "realtime_noloads", "ingame"]] = None,
+        platform_id: str = "",
+        region_id: str = "",
+        embeds: list[str] = None,
     ) -> Leaderboard:
         uri = f"leaderboards/{game.id}"
         if level:
             uri += f"/level/{level.id}/{category.id}"
         else:
             uri += f"/category/{category.id}"
-        payload = {"top": top, "video-only": video_only, "embed": "players"}
-        payload.update({k: v for k, v in queries.items() if v and k not in payload})
+        if not embeds:
+            embeds = []
+        embeds = ",".join(set(embeds + ["players"]))
+        payload = {
+            "top": top,
+            "video-only": video_only,
+            "date": date,
+            "emulators": emulators,
+            "timing": timing,
+            "platform": platform_id,
+            "region": region_id,
+            "embed": embeds,
+        }
+        payload = {k: v for k, v in payload.items() if v}
         if variables:
             for var in variables:
                 payload[f"var-{var[0].id}"] = var[1]
@@ -305,8 +329,19 @@ class SRC:
         self,
         game: Game,
         run_id: str = "",
-        orderby: str = "game",
-        dir: Literal["asc", "desc"] = "desc",
+        orderby: Literal[
+            "game",
+            "category",
+            "level",
+            "platform",
+            "region",
+            "emulated",
+            "date",
+            "submitted",
+            "status",
+            "verify-date",
+        ] = "game",
+        direction: Literal["asc", "desc"] = "desc",
         status: Literal["new", "verified", "rejected"] = "verified",
         **queries,
     ) -> Run | list[Run]:
@@ -319,7 +354,7 @@ class SRC:
             {
                 "game": game.id,
                 "orderby": orderby,
-                "direction": dir,
+                "direction": direction,
                 "status": status,
             }
         )

@@ -365,10 +365,10 @@ class Leaderboard:
         self.emulators: Optional[bool] = data.get("emulators", None)
         self.video_only: bool = data["video-only"]
         self.timing: str = data["timing"]
-        self.top_runs: defaultdict[str, list[Run]] = defaultdict(list)
+        self.top_runs: defaultdict[int, list[Run]] = defaultdict(list)
         for run in data["runs"]:
             self.top_runs[run["place"]].append(Run(run["run"], category, level))
-        self.top_runs: dict[str, list[Run]] = dict(self.top_runs)
+        self.top_runs: dict[int, list[Run]] = dict(self.top_runs)
 
     def wr(self) -> Run:
         if len(self.top_runs[1]) == 1:
@@ -381,7 +381,7 @@ class Leaderboard:
         if self.level:
             rep += f" - {self.level.name}"
         if self.vars:
-            rep += " - "
+            rep += " -"
             for v in self.vars:
                 rep += f" {v[0].name}={v[1]}"
         return rep + ">"
