@@ -81,11 +81,22 @@ class SRC:
         payload = {"orderby": "created", "direction": direction}
         return [Notification(n) for n in self.get(uri, payload)]
 
-    def get_variable(self, var_id: str):
-        return Variable(self.get(f"variables/{var_id}"))
-
     def get_guest(self, name: str) -> Guest:
         return Guest(self.get(f"guests/{name}"))
+
+    def get_variable(self, var_id: str) -> Variable:
+        return Variable(self.get(f"variables/{var_id}"))
+
+    def get_category(self, cat_id: str) -> Category:
+        """Gets a category by its ID, game and variables are embedded by default"""
+        return Category(self.get(f"categories/{cat_id}", {"embed": "game,variables"}))
+
+    def get_level(self, lvl_id: str) -> Level:
+        """Gets a level by its ID, categories and their variables
+        and the variables of the level are embedded by default"""
+        return Level(
+            self.get(f"levels/{lvl_id}", {"embed": "categories.variables,variables"})
+        )
 
     def generic_get(
         self,
@@ -370,27 +381,29 @@ class SRC:
             "verify-date",
         ] = "game",
         direction: Literal["asc", "desc"] = "desc",
+        embeds: list[str] = None,
     ) -> Run | list[Run]:
         uri = "runs"
-        payload = {"embed": "players,category.variables,level.variables"}
+        if embeds is None:
+            embeds = []
+        embeds = ",".join(set(embeds + ["players,category.variables,level.variables"]))
         if run_id:
             uri += f"/{run_id}"
-            return Run(self.get(uri, payload))
-        payload.update(
-            {
-                "status": status,
-                "game": game_id,
-                "category": category_id,
-                "level": level_id,
-                "examiner": examiner,
-                "user": user_id,
-                "guest": guest,
-                "platform": platform_id,
-                "region": region_id,
-                "orderby": orderby,
-                "direction": direction,
-            }
-        )
+            return Run(self.get(uri, {"embed": embeds}))
+        payload = {
+            "status": status,
+            "game": game_id,
+            "category": category_id,
+            "level": level_id,
+            "examiner": examiner,
+            "user": user_id,
+            "guest": guest,
+            "platform": platform_id,
+            "region": region_id,
+            "orderby": orderby,
+            "direction": direction,
+            "embed": embeds,
+        }
         payload = {k: v for k, v in payload.items() if v}
         if emulated is not None:
             payload["emulated"] = emulated
