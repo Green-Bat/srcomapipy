@@ -6,11 +6,10 @@ from .srctypes import *
 API_URL = "https://www.speedrun.com/api/v1/"
 
 
-# BUGS:
+# API BUGS:
 # skip-empty for records endpoint sometimes skips non-empty boards
+# user/personal-bests sometimes gets obsolete runs and non-wr runs
 # TODO:
-# [] 
-# [x] get games of series
 # [] save and load from file
 # [] cache
 
@@ -109,19 +108,6 @@ class SRC:
         payload = {"orderby": orderby, "direction": direction}
         return [srcobj(srct) for srct in self.get(endpoint, payload)]
 
-    def _unpack_embeds(
-        self, data: dict, embeds: str, ignore: list[str] = None
-    ) -> dict[dict]:
-        """Extracts embedded resources from data"""
-        unpacked = {}
-        embeds = embeds.split(",")
-        for embed in embeds:
-            embed = embed.split(".")
-            if ignore and embed[0] in ignore:
-                continue
-            unpacked[embed[0]] = data.pop(embed[0])
-        return unpacked
-
     def search_game(
         self,
         name: str = "",
@@ -149,8 +135,8 @@ class SRC:
         Args:
             name: name of game to search for
             series: will limit search to games from this specific series
-            abv: abbreviation of the game
-            orderby: determines sorting method, similarity is default if name is given
+            abv: search by abbreviation of the game
+            orderby: determines sorting method, similarity is default if 'name' is given
                 otherwise name.int is default
             direction: also determines sorting, ascending or descending
             embeds: list of resources to embed e.g. ["platforms","moderators"]
@@ -185,7 +171,7 @@ class SRC:
         return [Game(game, bulk) for game in self.get(uri, payload, bulk)]
 
     def get_game(self, game_id: str, embeds: list[str] = None) -> Game:
-        """Gets a game based on ID
+        """Gets a game based on its ID
         Args:
             game_id: ID of the game
             embeds: list of resources to embed,
@@ -196,15 +182,8 @@ class SRC:
         # embed categories and their variables and levels by default
         embeds = ",".join(set(embeds + ["categories.variables", "levels.variables"]))
         uri = f"games/{game_id}"
-        payload = {"embed": embeds}
-        data = self.get(uri, payload)
-        unpacked_embeds = self._unpack_embeds(
-            data, embeds, ignore=["categories", "levels"]
-        )
-        game = Game(data)
+        game = Game(self.get(uri, {"embed": embeds}))
         game.derived_games = self.get_derived_games(game)
-        for embed in unpacked_embeds:
-            game.embeds.append({embed: unpacked_embeds[embed]["data"]})
         return game
 
     def get_derived_games(self, game: Game) -> Optional[list[Game]]:
@@ -340,13 +319,14 @@ class SRC:
             "top": top,
             "video-only": video_only,
             "date": date,
-            "emulators": emulators,
             "timing": timing,
             "platform": platform_id,
             "region": region_id,
             "embed": embeds,
         }
         payload = {k: v for k, v in payload.items() if v}
+        if emulators is not None:
+            payload["emulators"] = emulators
         if variables:
             for var in variables:
                 payload[f"var-{var[0].id}"] = var[1]
@@ -407,12 +387,13 @@ class SRC:
                 "guest": guest,
                 "platform": platform_id,
                 "region": region_id,
-                "emulated": emulated,
                 "orderby": orderby,
                 "direction": direction,
             }
         )
         payload = {k: v for k, v in payload.items() if v}
+        if emulated is not None:
+            payload["emulated"] = emulated
         data = self.get(uri, payload)
         runs = [Run(r) for r in data]
         return sorted(runs, key=lambda r: r._primary_time)

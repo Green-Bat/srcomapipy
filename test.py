@@ -23,10 +23,10 @@ def main():
         game, cat, lvl, variables=[(cat.variables["Version"], "PC")]
     )
     print(lbrd, lbrd.top_runs)
-    for name, cat in game.categories.items():
-        print(f"category: {name}")
-        for _, v in cat.variables.items():
-            print(f"{v} {v.mandatory=} {v.obsoletes=} {v.is_subcategory=}")
+    # for name, cat in game.categories.items():
+    #     print(f"category: {name}")
+    #     for _, v in cat.variables.items():
+    #         print(f"{v} {v.mandatory=} {v.obsoletes=} {v.is_subcategory=}")
     series = api.get_series(name="Batman")
     print(series)
     print(api.generic_get("platforms", "o7e25xew"))

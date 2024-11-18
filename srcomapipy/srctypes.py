@@ -177,6 +177,10 @@ class Level:
         self.id: str = data["id"]
         self.name: str = data["name"]
         self.rules: str = data["rules"]
+        self.categories: Optional[dict[str, Category]] = None
+        if "categories" in data:
+            cats: list[Category] = [Category(c) for c in data["categories"]["data"]]
+            self.categories = {c.name: c for c in cats}
         if "variables" in data:
             variables = [Variable(v) for v in data["variables"]["data"]]
             self.variables: dict[str, Variable] = {v.name: v for v in variables}
@@ -194,6 +198,11 @@ class Category:
         self.rules: str = data["rules"]
         self.weblink: str = data["weblink"]
         self.players = data["players"]
+        self.player_type = data["players"]["type"]
+        self.player_number = data["players"]["value"]
+        self.game: Optional[Game] = None
+        if "game" in data:
+            self.game: Game = Game(data["game"])
         if "variables" in data:
             variables = [Variable(v) for v in data["variables"]["data"]]
             self.variables: dict[str, Variable] = {v.name: v for v in variables}
@@ -221,13 +230,8 @@ class Game:
         if data["created"]:
             self.creation_date: datetime = datetime.fromisoformat(data["created"])
         self.ruleset: dict = data["ruleset"]
-        self.platforms: list[str] = data["platforms"]
-        self.regions: list[str] = data["regions"]
-        self.genres: list[str] = data["genres"]
-        self.engines: list[str] = data["engines"]
-        self.devs: list[str] = data["developers"]
-        self.publishers: list[str] = data["publishers"]
-        self.moderators: dict[str, str] = data["moderators"]
+
+        # --embeds--
         if "categories" in data:
             categories = [Category(c) for c in data["categories"]["data"]]
             self.categories: dict[str, Category] = {c.name: c for c in categories}
@@ -236,11 +240,38 @@ class Game:
             levels = [Level(l) for l in data["levels"]["data"]]
             self.levels: dict[str, Level] = {l.name: l for l in levels}
             self.levels_by_id: dict[str, Level] = {l.id: l for l in levels}
-        self.derived_games: list[Game] = None
-        self.embeds: list[dict] = None
+
+        self.moderators: dict[str, str] | list[Moderator] = data["moderators"]
+        self.gametypes: list[str | GameType] = data["gametypes"]
+        self.platforms: list[str | Platform] = data["platforms"]
+        self.regions: list[str | Region] = data["regions"]
+        self.genres: list[str | Genre] = data["genres"]
+        self.engines: list[str | Engine] = data["engines"]
+        self.devs: list[str | Developer] = data["developers"]
+        self.publishers: list[str | Publisher] = data["publishers"]
+        if "data" in data["moderators"]:
+            self.moderators = [Moderator(m) for m in self.moderators["data"]]
+        if "data" in data["gametypes"]:
+            self.gametypes = [GameType(gt) for gt in self.gametypes["data"]]
+        if "data" in data["platforms"]:
+            self.platforms = [Platform(p) for p in self.platforms["data"]]
+        if "data" in data["regions"]:
+            self.regions = [Region(r) for r in self.regions["data"]]
+        if "data" in data["genres"]:
+            self.genres = [Genre(g) for g in self.genres["data"]]
+        if "data" in data["engines"]:
+            self.engines = [Engine(e) for e in self.engines["data"]]
+        if "data" in data["developers"]:
+            self.devs = [Developer(d) for d in self.devs["data"]]
+        if "data" in data["publishers"]:
+            self.publishers = [Publisher(p) for p in self.publishers["data"]]
+        self.variables: Optional[list[Variable]] = None
+        if "variables" in data:
+            self.variables = [Variable(v) for v in data["variables"]["data"]]
+        self.derived_games: Optional[list[Game]] = None
 
     def __repr__(self) -> str:
-        return f"<Game: {self.name} ({self.id})>"
+        return f"<Game: {self.name} [{self.release_year}] ({self.id})>"
 
 
 class Run:
