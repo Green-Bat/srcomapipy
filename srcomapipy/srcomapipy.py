@@ -9,6 +9,7 @@ API_URL = "https://www.speedrun.com/api/v1/"
 # BUGS:
 # skip-empty for records endpoint sometimes skips non-empty boards
 # TODO:
+# [] 
 # [x] get games of series
 # [] save and load from file
 # [] cache
@@ -42,7 +43,7 @@ class SRC:
 
     def get(
         self, uri: str, params: dict = None, bulk: bool = False
-    ) -> Optional[dict | list]:
+    ) -> Optional[dict | list[dict]]:
         uri = API_URL + uri
         if params:
             params["max"] = 200 if not bulk else 1000
@@ -88,7 +89,11 @@ class SRC:
         return Guest(self.get(f"guests/{name}"))
 
     def generic_get(
-        self, endpoint: str, id: str = "", orderby: Literal["name", "released"] = "name"
+        self,
+        endpoint: str,
+        id: str = "",
+        orderby: Literal["name", "released"] = "name",
+        direction: Literal["asc", "desc"] = "asc",
     ) -> SRCType | list[SRCType]:
         """Used to get any of the following resources:
         developers, publishers, genres, gametypes, engines, platforms, regions
@@ -101,7 +106,8 @@ class SRC:
         srcobj = TYPES[endpoint]
         if id:
             return srcobj(self.get(endpoint + f"/{id}"))
-        return [srcobj(srct) for srct in self.get(endpoint, {"orderby": orderby})]
+        payload = {"orderby": orderby, "direction": direction}
+        return [srcobj(srct) for srct in self.get(endpoint, payload)]
 
     def _unpack_embeds(
         self, data: dict, embeds: str, ignore: list[str] = None
@@ -280,6 +286,32 @@ class SRC:
             }
         )
         return [User(u) for u in self.get(uri, payload)]
+
+    def get_user_pbs(
+        self,
+        user: User,
+        top: Optional[int] = None,
+        series_id: str = "",
+        game_id: str = "",
+        embeds: list[str] = None,
+    ) -> UserBoard:
+        """Gets a specific user's personal bests
+        Args:
+            user: user who's pbs will be returned
+            top: gets runs with a place equivalent to or better than this number
+            series_id: restricts runs to a specific series
+            game_id: restricts runs to a specific game
+            embeds: embed options are the same as the ones
+        """
+        uri = f"users/{user.id}/personal-bests"
+        if not embeds:
+            embeds = []
+        embeds = ",".join(
+            set(embeds + ["players", "category.variables", "level.variables"])
+        )
+        payload = {"top": top, "series": series_id, "game": game_id, "embed": embeds}
+        payload = {k: v for k, v in payload.items() if v}
+        return UserBoard(self.get(uri, payload), user)
 
     def get_leaderboard(
         self,

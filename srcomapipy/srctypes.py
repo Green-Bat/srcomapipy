@@ -245,29 +245,48 @@ class Game:
 
 class Run:
     def __init__(
-        self, data: dict, cat: Category = None, lvl: Level = None, player: User = None
+        self,
+        data: dict,
+        cat: Category = None,
+        lvl: Level = None,
+        players: list[User] = None,
+        place: Optional[int] = None,
     ):
         self.data = data
         self.id: str = data["id"]
-        self.game: str = data["game"]
-        self.category = data["category"]
-        self.level = None
+        self.game: Game = None
+        if isinstance(data["game"], str):
+            self.game_id: str = data["game"]
+        else:
+            self.game = Game(data["game"]["data"])
+            self.game_id = self.game.id
+        self.place = place
         self.variables: list[tuple[Variable, str]] = []
+        self.category: Optional[Category] = None
+        self.category_id: str = ""
+        self.level: Optional[Level] = None
+        self.level_id: Optional[str] = ""
+        if lvl:
+            self.level = lvl
+            self.level_id = lvl.id
+        elif data["level"] and isinstance(data["level"], str):
+            self.level_id = data["level"]
+        elif data["level"] and data["level"].get("data"):
+            self.level = Level(data["level"]["data"])
+            self.level_id = self.level.id
         if cat:
             self.category = cat
-        elif "data" in data["category"] and data["category"]["data"]:
+            self.category_id = cat.id
+        elif isinstance(data["category"], str):
+            self.category_id: str = data["category"]
+        else:
             self.category = Category(data["category"]["data"])
-        if isinstance(self.category, Category):
+            self.category_id = self.category.id
+        if self.category:
             for k, v in data["values"].items():
                 var = self.category.variables_by_id[k]
                 val = var.values_by_id[v]
                 self.variables.append((var, val))
-        if lvl:
-            self.level = lvl
-        elif data["level"] and isinstance(data["level"], str):
-            self.level = data["level"]
-        elif data["level"] and data["level"]["data"]:
-            self.level = Level(data["level"]["data"])
         self.video_text: str = data["videos"].get("text", "")
         self.videos: list[str] = [
             link["uri"] for link in data["videos"].get("links", [])
@@ -289,9 +308,9 @@ class Run:
         if lrt := data["times"]["realtime_noloads_t"]:
             self.loadremovedtime = self.format_td(timedelta(seconds=lrt))
         self.times = {
-            "RTA": rta,
-            "IGT": igt,
-            "LRT": lrt,
+            "RTA": self.realtime,
+            "IGT": self.ingametime,
+            "LRT": self.loadremovedtime,
         }
         # --dates--
         if "verify-date" in data["status"]:
@@ -302,13 +321,20 @@ class Run:
         self.submission_date: datetime = datetime.fromisoformat(data["submitted"])
 
         self.players: list[User] = None
-        if player:
-            self.players = [player]
+        if players:
+            self.players = players
         elif "data" in data["players"]:
             self.players = [
                 User(p) if p["rel"] == "user" else Guest(p)
                 for p in data["players"]["data"]
             ]
+        self.platform_id: str = data["system"]["platform"]
+        self.region_id: str = data["system"]["region"]
+        if "region" in data:
+            self.region = Region(data["region"]["data"])
+        if "platform" in data:
+            self.platform = Platform(data["platform"]["data"])
+        self.is_emulated: bool = data["system"]["emulated"]
 
     def format_td(self, td: timedelta) -> str:
         hours, remainder = divmod(td.seconds, 3600)
@@ -329,19 +355,20 @@ class Run:
                 return "LRT"
 
     def __repr__(self) -> str:
-        rep = f"<Run: "
+        rep = f"<Run: ({self.id}) "
         time_p = self.primary_time()
         rep += f"{time_p}-{self.times[time_p]} "
         for k, v in self.times.items():
             if v is not None and k != time_p:
                 rep += f"{k}-{v} "
-        rep += f"({self.id})"
-        if isinstance(self.category, Category):
-            rep += f"-{self.category.name}-"
-        if self.level and isinstance(self.level, Level):
+        if self.game:
+            rep += f"{self.game.name}-"
+        if self.category:
+            rep += f"{self.category.name}-"
+        if self.level:
             rep += f"{self.level.name}-"
         for var, val in self.variables:
-            rep += f"'{var.name}'={val} "
+            rep += f"{var.name}='{val}' "
         if self.players:
             players = [n.name for n in self.players]
         else:
@@ -380,8 +407,7 @@ class Leaderboard:
         return self.top_runs[1]
 
     def __repr__(self) -> str:
-        rep = f"<Leaderboard: "
-        rep += f"{self.category.name}"
+        rep = f"<Leaderboard: {self.category.name}"
         if self.level:
             rep += f" - {self.level.name}"
         if self.vars:
@@ -389,3 +415,33 @@ class Leaderboard:
             for v in self.vars:
                 rep += f" {v[0].name}={v[1]}"
         return rep + ">"
+
+
+class UserBoard:
+    def __init__(self, data: list[dict], user: User):
+        self.data = data
+        self.user = user
+        self.runs: list[Run] = []
+        for pb in data:
+            place: int = pb.pop("place")
+            run_data: dict = pb.pop("run")
+            cat_data: dict = pb.pop("category")["data"]
+            lvl_data: dict = pb.pop("level")["data"]
+            lvl: Level = None
+            if lvl_data:
+                lvl = Level(lvl_data)
+            run_data["players"] = pb.pop("players")
+            for k, v in pb.items():
+                run_data[k] = v
+            self.runs.append(Run(run_data, Category(cat_data), lvl, place=place))
+
+    def wrs(self) -> list[Run]:
+        return [run for run in self.runs if run.place == 1]
+
+    def higher_than(self, place: int) -> list[Run]:
+        """returns runs that are nth place or higher"""
+        return [run for run in self.runs if run.place >= place]
+
+    def lower_than(self, place: int) -> list[Run]:
+        """returns runs that are nth place or lower"""
+        return [run for run in self.runs if run.place <= place]
