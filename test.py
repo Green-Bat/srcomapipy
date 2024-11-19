@@ -15,7 +15,7 @@ def main():
     game = api.search_game("Batman: Arkham City")[0]
     my_pbs = api.get_user_pbs(me, game_id=game.id, embeds=["game"])
     print(my_pbs.runs)
-    runs: list[Run] = api.get_runs(game.id, status="new")
+    runs: list[Run] = api.get_runs(game_id=game.id, status="new")
     print(runs)
     cat = game.categories["Fastest"]
     lvl = game.levels["Meltdown Mayhem"]

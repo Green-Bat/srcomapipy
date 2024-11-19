@@ -10,7 +10,6 @@ API_URL = "https://www.speedrun.com/api/v1/"
 # skip-empty for records endpoint sometimes skips non-empty boards
 # user/personal-bests sometimes gets obsolete runs and non-wr runs
 # TODO:
-# [] save and load from file
 # [] cache
 
 
@@ -82,9 +81,11 @@ class SRC:
         return [Notification(n) for n in self.get(uri, payload)]
 
     def get_guest(self, name: str) -> Guest:
+        """Gets a specific guest by their name"""
         return Guest(self.get(f"guests/{name}"))
 
     def get_variable(self, var_id: str) -> Variable:
+        """Gets a specific variable by its ID"""
         return Variable(self.get(f"variables/{var_id}"))
 
     def get_category(self, cat_id: str) -> Category:
@@ -198,6 +199,7 @@ class SRC:
         return game
 
     def get_derived_games(self, game: Game) -> Optional[list[Game]]:
+        """Gets all derived games for a specific game"""
         derived_uri = f"games/{game.id}/derived-games"
         data = self.get(derived_uri)
         derived_games = [Game(d) for d in data]
@@ -214,6 +216,16 @@ class SRC:
         ] = "name.int",
         direction: Literal["asc", "desc"] = "asc",
     ) -> Series | list[Series]:
+        """Gets a game series by ID or a list of series based on the arguments.
+        Moderators are embedded by default
+        Args:
+            series_id: returns specific series based on id
+            name: name of series to search for
+            abbreviation: search based on abbreviation of the series
+            mod_id: gets series that are moderated by this user
+            orderby: determines sorting method
+            direction: determines direction of sorting
+        """
         uri = "series"
         if series_id:
             uri += f"/{series_id}"
@@ -291,7 +303,7 @@ class SRC:
             top: gets runs with a place equivalent to or better than this number
             series_id: restricts runs to a specific series
             game_id: restricts runs to a specific game
-            embeds: embed options are the same as the ones
+            embeds: embed options are the same as the ones for runs
         """
         uri = f"users/{user.id}/personal-bests"
         if not embeds:
@@ -314,10 +326,25 @@ class SRC:
         date: str = date.today().isoformat(),
         emulators: Optional[bool] = None,
         timing: Optional[Literal["realtime", "realtime_noloads", "ingame"]] = None,
-        platform_id: str = "",
-        region_id: str = "",
+        platform_id: str = None,
+        region_id: str = None,
         embeds: list[str] = None,
     ) -> Leaderboard:
+        """Returns a specific leaderboard
+        Args:
+            top: number of runs to include
+            video_only: determines if included runs must have a video
+            variables: a list of tuples of a specific variable associated
+                with the leaderboard and the desired value
+            date: returns runs done on this date or before
+            emulators: determines if only emulators or real devices are shown
+                if omitted both are included
+            timing: determines which timing method to sort the runs by
+            platform_id: gets runs done on a specific platform
+            region_id: gets runs done in a specific region
+            embeds: list of resources to embed, players are embedded by default
+                and reinserted into the runs themselves
+        """
         uri = f"leaderboards/{game.id}"
         if level:
             uri += f"/level/{level.id}/{category.id}"
@@ -335,7 +362,7 @@ class SRC:
             "region": region_id,
             "embed": embeds,
         }
-        payload = {k: v for k, v in payload.items() if v}
+        payload = {k: v for k, v in payload.items() if v is not None}
         if emulators is not None:
             payload["emulators"] = emulators
         if variables:
@@ -357,16 +384,16 @@ class SRC:
 
     def get_runs(
         self,
-        game_id: str = "",
-        run_id: str = "",
+        run_id: str = None,
+        game_id: str = None,
         status: Literal["new", "verified", "rejected"] = "verified",
-        category_id: str = "",
-        level_id: str = "",
-        examiner: str = "",
-        user_id: str = "",
-        guest: str = "",
-        platform_id: str = "",
-        region_id: str = "",
+        category_id: str = None,
+        level_id: str = None,
+        examiner: str = None,
+        user_id: str = None,
+        guest: str = None,
+        platform_id: str = None,
+        region_id: str = None,
         emulated: Optional[bool] = None,
         orderby: Literal[
             "game",
@@ -383,6 +410,26 @@ class SRC:
         direction: Literal["asc", "desc"] = "desc",
         embeds: list[str] = None,
     ) -> Run | list[Run]:
+        """Get a run based on ID or a list of runs based on the arguments.
+        Obsolete runs are included.
+        Args:
+            run_id: ID of the run to get
+            game_id: gets runs from a specific game
+            status: status of the runs to get
+            category_id: category of the runs
+            level_id: level of the runs
+            examiner: ID of a moderator, returns runs verified by this moderator
+            user_id: returns runs done by a specific user
+            guest: returns runs done by a specific guest
+            platform_id: gets runs performed on a specific platform
+            region_id: gets runs from a specific region
+            emulated: determiens if emulated runs are included or excluded,
+                if omitted both are included
+            orderby: determines sorting order
+            direction: determines sorting direction
+            embeds: list of things to embed, players, categories/levels and
+                their variables are embedded by default
+        """
         uri = "runs"
         if embeds is None:
             embeds = []
@@ -404,7 +451,7 @@ class SRC:
             "direction": direction,
             "embed": embeds,
         }
-        payload = {k: v for k, v in payload.items() if v}
+        payload = {k: v for k, v in payload.items() if v is not None}
         if emulated is not None:
             payload["emulated"] = emulated
         data = self.get(uri, payload)
@@ -429,6 +476,11 @@ class SRC:
         return Run(self.put(uri, json=payload))
 
     def change_run_players(self, run: Run, players: list[User | Guest]) -> Run:
+        """Changes the players of a run
+        Args:
+            run: the run to be changed
+            players: the new players of the run
+        """
         uri = f"runs/{run.id}/players"
         payload = {"players": []}
         for p in players:
@@ -441,17 +493,17 @@ class SRC:
     def submit_run(
         self,
         category_id: str,
-        level_id: str,
         platform_id: str,
         times: dict[str, float],
         players: list[User | Guest],
+        level_id: Optional[str] = None,
         date: str = date.today().isoformat(),
-        region_id: str = "",
+        region_id: Optional[str] = None,
         verified: bool = False,
         emulated: bool = False,
-        video_link: str = "",
-        comment: str = "",
-        splitsio: str = "",
+        video_link: str = None,
+        comment: Optional[str] = None,
+        splitsio: Optional[str] = None,
         variables: list[tuple[Variable, str]] = None,
     ) -> Run:
         uri = "runs"
@@ -477,9 +529,9 @@ class SRC:
                 "platform": platform_id,
                 "verified": verified,
                 "times": {
-                    "realtime": times["realtime"],
-                    "realtime_noloads": times["realtime_noloads"],
-                    "ingame": times["ingame"],
+                    "realtime": times.get("realtime", 0),
+                    "realtime_noloads": times.get("realtime_noloads", 0),
+                    "ingame": times.get("ingame", 0),
                 },
                 "players": _players,
                 "emulated": emulated,
@@ -489,9 +541,12 @@ class SRC:
                 "variables": _variables,
             }
         }
+        payload["run"] = {k: v for k, v in payload["run"].items() if v is not None}
         return Run(self.post(uri, json=payload))
 
     def delte_run(self, run_id: str) -> Run:
+        """Deletes a run. Requires API Key. You can only delete your own runs,
+        unless you're a global mod. May raise an exception with code 500 on success"""
         uri = f"{API_URL}runs/{run_id}"
         r = requests.delete(uri, headers=self.headers)
         if r.status_code >= 400:
