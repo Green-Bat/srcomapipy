@@ -5,7 +5,7 @@ with open("readme.md") as f:
 
 setup(
     name="srcomapipy",
-    version="0.3.0",
+    version="0.4.2",
     description="python libray for the speedrun.com API",
     packages=find_packages(),
     long_description_content_type="text/markdown",

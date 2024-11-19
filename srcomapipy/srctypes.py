@@ -95,7 +95,7 @@ class Series:
             self.moderators = [Moderator(m) for m in data["moderators"]["data"]]
 
     def __repr__(self) -> str:
-        rep = f"<Series: {self.name}; moderated by "
+        rep = f"<Series: {self.name} ({self.id}); moderated by "
         mods = ", ".join([m.name for m in self.moderators])
         return f"{rep}{mods}>"
 
@@ -176,6 +176,7 @@ class Level:
         self.data = data
         self.id: str = data["id"]
         self.name: str = data["name"]
+        self.weblink: str = data["weblink"]
         self.rules: str = data["rules"]
         self.categories: Optional[dict[str, Category]] = None
         if "categories" in data:
@@ -432,19 +433,29 @@ class Leaderboard:
             self.top_runs[run["place"]].append(Run(run["run"], category, level))
         self.top_runs: dict[int, list[Run]] = dict(self.top_runs)
 
+        self.all_variables: Optional[list[Variable]] = None
+        self.used_regions: Optional[list[Region]] = None
+        self.used_platforms: Optional[list[Platform]] = None
+        if "variables" in data:
+            self.all_variables = [Variable(v) for v in data["variables"]["data"]]
+        if "regions" in data:
+            self.used_regions = [Region(r) for r in data["regions"]["data"]]
+        if "platforms" in data:
+            self.used_platforms = [Platform(p) for p in data["platforms"]["data"]]
+
     def wr(self) -> Run:
         if len(self.top_runs[1]) == 1:
             return self.top_runs[1][0]
         return self.top_runs[1]
 
     def __repr__(self) -> str:
-        rep = f"<Leaderboard: {self.category.name}"
+        rep = f"<Leaderboard: {self.game.name} {self.category.name}"
         if self.level:
             rep += f" - {self.level.name}"
         if self.vars:
             rep += " -"
             for v in self.vars:
-                rep += f" {v[0].name}={v[1]}"
+                rep += f" {v[0].name}='{v[1]}'"
         return rep + ">"
 
 
