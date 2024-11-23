@@ -9,6 +9,7 @@ API_URL = "https://www.speedrun.com/api/v1/"
 # API BUGS:
 # skip-empty for records endpoint sometimes skips non-empty boards
 # user/personal-bests sometimes gets obsolete runs and non-wr runs
+# some variables have no values but still have a default
 # TODO:
 # [] cache
 
@@ -19,6 +20,7 @@ class SRC:
     DATETIME_FORMAT = f"{DATE_FORMAT} {TIME_FORMAT}"
 
     def __init__(self, api_key: str = "", user_agent: str = "Green-Bat/srcomapipy"):
+        self.cache: dict[tuple[str, tuple], dict | list] = dict()
         self.api_key = api_key
         self.user_agent = user_agent
         self.headers = {"User-Agent": user_agent}
@@ -45,10 +47,16 @@ class SRC:
         uri = API_URL + uri
         if params:
             params["max"] = 200 if not bulk else 1000
+        else:
+            params = {}
+        key = (uri, tuple(sorted(params.values(), key=lambda p: str(p))))
+        data: dict | list = self.cache.get(key)
+        if data is not None:
+            return data
         r = requests.get(uri, headers=self.headers, params=params)
         if r.status_code >= 400:
             raise SRCAPIException(r.status_code, uri[len(API_URL) :], r.json())
-        data: dict | list = r.json()["data"]
+        data = r.json()["data"]
         if "pagination" in r.json():
             while next_link := r.json()["pagination"]["links"]:
                 if len(next_link) == 1 and next_link[0]["rel"] == "prev":
@@ -61,6 +69,7 @@ class SRC:
                 if r.status_code >= 400:
                     raise SRCAPIException(r.status_code, uri[len(API_URL) :], r.json())
                 data.extend(r.json()["data"])
+        self.cache[key] = data
         return data
 
     def get_current_profile(self) -> Optional[User]:

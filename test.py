@@ -12,6 +12,7 @@ def main():
     api = SRC(api_key=api_key)
     me = api.get_current_profile()
     print(me)
+    print(api.search_game(name="Batman"))
     game = api.search_game("Batman: Arkham City")[0]
     my_pbs = api.get_user_pbs(me, game_id=game.id, embeds=["game"])
     print(my_pbs.runs)
@@ -30,6 +31,7 @@ def main():
     series = api.get_series(name="Batman")
     print(series)
     print(api.generic_get("platforms", "o7e25xew"))
+    print(api.search_game(name="Batman"))
 
 
 if __name__ == "__main__":

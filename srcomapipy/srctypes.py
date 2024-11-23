@@ -159,7 +159,7 @@ class Variable:
         self.default_val: Optional[tuple[str, str]] = None
         if data["values"]["default"]:
             self.default_val = (
-                self.values_by_id[data["values"]["default"]],
+                self.values_by_id.get(data["values"]["default"]),
                 data["values"]["default"],
             )
 
@@ -224,6 +224,7 @@ class Game:
         self.name: str = data["names"]["international"]
         self.abv: str = data["abbreviation"]
         self.weblink: str = data["weblink"]
+        self.bulk = bulk
         if bulk:
             return
         self.boosts_received: int = data["boostReceived"]
@@ -274,7 +275,10 @@ class Game:
         self.derived_games: Optional[list[Game]] = None
 
     def __repr__(self) -> str:
-        return f"<Game: {self.name} [{self.release_year}] ({self.id})>"
+        rep = f"<Game: {self.name} "
+        if not self.bulk:
+            rep += f"[{self.release_year}] "
+        return rep + f"({self.id})>"
 
 
 class Run:
