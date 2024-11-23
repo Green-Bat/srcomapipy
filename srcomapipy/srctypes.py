@@ -88,7 +88,8 @@ class Series:
         self.name: str = data["names"]["international"]
         self.abv: str = data["abbreviation"]
         self.weblink: str = data["weblink"]
-        self.created = None
+        self.created: Optional[datetime] = None
+        self.moderators: Optional[list[Moderator]] = None
         if data["created"]:
             self.created = datetime.fromisoformat(data["created"])
         if data["moderators"]["data"]:
@@ -110,7 +111,7 @@ class User:
             self.country: str = data["location"]["country"]["names"]["international"]
         self.weblink: str = data["weblink"]
         self.role: str = data["role"]
-        self.signupdate = datetime.fromisoformat(data["signup"])
+        self.signupdate: datetime = datetime.fromisoformat(data["signup"])
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}: {self.name} ({self.id})>"
@@ -155,12 +156,13 @@ class Variable:
         self.values_by_id: dict[str, str] = {
             k: v["label"] for k, v in data["values"]["values"].items()
         }
+        self.default_val: Optional[tuple[str, str]] = None
         if data["values"]["default"]:
-            self.default_val: str = {
-                k: v for k, v in self.values.items() if v == data["values"]["default"]
-            }
-        else:
-            self.default_val = None
+            self.default_val = (
+                self.values_by_id[data["values"]["default"]],
+                data["values"]["default"],
+            )
+
         self.obsoletes: bool = data["obsoletes"]
         self.user_defined: bool = data["user-defined"]
         self.is_subcategory: bool = data["is-subcategory"]

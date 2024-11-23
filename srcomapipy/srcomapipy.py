@@ -116,7 +116,7 @@ class SRC:
         """
         srcobj = TYPES[endpoint]
         if id:
-            return srcobj(self.get(endpoint + f"/{id}"))
+            return srcobj(self.get(f"{endpoint}/{id}"))
         payload = {"orderby": orderby, "direction": direction}
         return [srcobj(srct) for srct in self.get(endpoint, payload)]
 
@@ -253,7 +253,7 @@ class SRC:
         orderby: Literal["name.int", "name.jap", "signup", "role"] = "name.int",
         direction: Literal["asc", "desc"] = "asc",
     ) -> User | list[User]:
-        """Gets user or users
+        """Gets a user by ID or list of users based on the arguments
         Args:
             user_id: will return a single user based on the ID
             lookup: does a cas-sensitive exact-string match search across the site
@@ -330,7 +330,7 @@ class SRC:
         region_id: str = None,
         embeds: list[str] = None,
     ) -> Leaderboard:
-        """Returns a specific leaderboard
+        """Returns a specific leaderboard of runs. Obsolete runs are not included.
         Args:
             top: number of runs to include
             video_only: determines if included runs must have a video
