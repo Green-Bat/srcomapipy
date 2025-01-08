@@ -1,5 +1,5 @@
 # srcomapipy
-A python library for the speedrun.com API
+A python library for the [speedrun.com API](https://github.com/speedruncomorg/api)
 ## Install
 ```python
 pip install srcomapipy

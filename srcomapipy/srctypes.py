@@ -11,7 +11,7 @@ class SRCException(Exception):
 
 class SRCAPIException(Exception):
     def __init__(self, code: int, uri: str, data: dict):
-        self.message = f"{code}: {data["message"]} ({uri}) "
+        self.message = f"{code}: {data['message']} ({uri}) "
         super().__init__(self.message)
         self.status_code: int = data["status"]
         self.errormsg: str = data["message"]

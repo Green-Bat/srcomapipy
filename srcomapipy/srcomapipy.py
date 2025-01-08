@@ -11,7 +11,7 @@ API_URL = "https://www.speedrun.com/api/v1/"
 # user/personal-bests sometimes gets obsolete runs and non-wr runs
 # some variables have no values but still have a default
 # TODO:
-# [] cache
+# 
 
 
 class SRC:
@@ -50,7 +50,7 @@ class SRC:
         else:
             params = {}
         key = (uri, tuple(sorted(params.values(), key=lambda p: str(p))))
-        data: dict | list = self.cache.get(key)
+        data: dict | list[dict] = self.cache.get(key)
         if data is not None:
             return data
         r = requests.get(uri, headers=self.headers, params=params)
