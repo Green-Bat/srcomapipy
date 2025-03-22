@@ -351,12 +351,13 @@ class Run:
             "LRT": self.loadremovedtime,
         }
         # --dates--
-        if "verify-date" in data["status"]:
-            self.verify_date: datetime = datetime.fromisoformat(
-                data["status"]["verify-date"]
-            )
         self.date: datetime = datetime.fromisoformat(data["date"])
-        self.submission_date: datetime = datetime.fromisoformat(data["submitted"])
+        self.verify_date: Optional[datetime] = None
+        self.submission_date: Optional[datetime] = None
+        if data["status"].get("verify-date"):
+            self.verify_date = datetime.fromisoformat(data["status"]["verify-date"])
+        if data["submitted"]:
+            self.submission_date = datetime.fromisoformat(data["submitted"])
 
         self.players: list[User] = None
         if players:
