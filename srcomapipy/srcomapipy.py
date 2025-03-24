@@ -2,6 +2,7 @@ import requests
 from typing import Literal, Optional
 from datetime import date
 from .srctypes import *
+from itertools import groupby
 
 API_URL = "https://www.speedrun.com/api/v1/"
 
@@ -10,8 +11,9 @@ API_URL = "https://www.speedrun.com/api/v1/"
 # skip-empty for records endpoint sometimes skips non-empty boards
 # user/personal-bests sometimes gets obsolete runs and non-wr runs
 # some variables have no values but still have a default
+# potential bug when using orderby category for get runs, not all runs are retrieved
 # TODO:
-# 
+#
 
 
 class SRC:
@@ -418,6 +420,7 @@ class SRC:
         ] = "game",
         direction: Literal["asc", "desc"] = "desc",
         embeds: list[str] = None,
+        time_sort: bool = False,
     ) -> Run | list[Run]:
         """Get a run based on ID or a list of runs based on the arguments.
         Obsolete runs are included.
@@ -438,6 +441,7 @@ class SRC:
             direction: determines sorting direction
             embeds: list of things to embed, players, categories/levels and
                 their variables are embedded by default
+            time_sort: sorts by run time in addition to orderby
         """
         uri = "runs"
         if embeds is None:
@@ -465,7 +469,23 @@ class SRC:
             payload["emulated"] = emulated
         data = self.get(uri, payload)
         runs = [Run(r) for r in data]
-        return sorted(runs, key=lambda r: r._primary_time)
+
+        def key_func(run: Run, orderby: str):
+            if orderby in ["game", "category", "level", "platform", "region"]:
+                return run.__dict__[orderby].id
+            elif orderby == "submitted":
+                return run.submission_date
+            elif orderby == "verify-date":
+                return run.verify_date
+            else:
+                return run.__dict__[orderby]
+
+        sorted_runs = []
+        if time_sort:
+            for _, g in groupby(runs, key=lambda r: key_func(r, orderby)):
+                sorted_runs += sorted(list(g), key=lambda r: r._primary_time)
+            return sorted_runs
+        return runs
 
     def change_run_status(
         self, run: Run, status: Literal["verified", "rejected"], reason: str = ""

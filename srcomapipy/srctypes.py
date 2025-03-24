@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from collections import defaultdict
 from typing import Optional
 
@@ -29,6 +29,9 @@ class SRCType:
         self.id: str = data["id"]
         self.name: str = data["name"]
         self.links: list[dict[str, str]] = data["links"]
+
+    def __eq__(self, value: "SRCType"):
+        return self.id == value.id
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}: {self.name} ({self.id})>"
@@ -167,6 +170,9 @@ class Variable:
         self.user_defined: bool = data["user-defined"]
         self.is_subcategory: bool = data["is-subcategory"]
 
+    def __eq__(self, value: "Variable"):
+        return self.id == value.id
+
     def __repr__(self) -> str:
         vals = [f"{k}({v})" for k, v in self.values.items()]
         vals = " - ".join(vals)
@@ -292,6 +298,7 @@ class Run:
     ):
         self.data = data
         self.id: str = data["id"]
+        self.weblink = data["weblink"]
         self.game: Game = None
         if isinstance(data["game"], str):
             self.game_id: str = data["game"]
@@ -351,7 +358,7 @@ class Run:
             "LRT": self.loadremovedtime,
         }
         # --dates--
-        self.date: datetime = datetime.fromisoformat(data["date"])
+        self.date: date = date.fromisoformat(data["date"])
         self.verify_date: Optional[datetime] = None
         self.submission_date: Optional[datetime] = None
         if data["status"].get("verify-date"):
@@ -413,8 +420,14 @@ class Run:
         else:
             players = [p["id"] for p in self.data["players"]]
         players = ", ".join(players)
-        rep += f"by {players}>"
+        rep += f"by {players} on {self.date}>"
         return rep
+
+    def __eq__(self, value: "Run"):
+        return self.id == value.id
+
+    def __hash__(self):
+        return hash(self.__repr__())
 
 
 class Leaderboard:
