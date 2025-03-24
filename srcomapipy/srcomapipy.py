@@ -3,6 +3,7 @@ from typing import Literal, Optional
 from datetime import date
 from .srctypes import *
 from itertools import groupby
+from urllib.parse import urlparse
 
 API_URL = "https://www.speedrun.com/api/v1/"
 
@@ -581,3 +582,33 @@ class SRC:
         if r.status_code >= 400:
             raise SRCAPIException(r.status_code, uri[len(API_URL) :], r.json())
         return Run(r.json()["data"])
+
+    def get_at_risk_wrs(self, game_id: str) -> list[Run]:
+        """Gets all former World Records that only have Twitch links
+        and may be at risk of being deleted"""
+        runs: list[Run] = self.get_runs(game_id=game_id)
+
+        def key_func(r: Run):
+            comparator = f"{r.category_id}"
+            for v in r.variables:
+                if v[0].is_subcategory:
+                    comparator += f"_{v[1]}"
+            return comparator
+
+        former_wrs: list[Run] = []
+        runs = sorted(runs, key=key_func)
+        for _, g in groupby(runs, key=key_func):
+            g: list[Run] = sorted(g, key=lambda r: r.date)
+            latest_wr = g[0]
+            former_wrs.append(g[0])
+            for run in g[1:]:
+                if run._primary_time < latest_wr._primary_time:
+                    latest_wr = run
+                    former_wrs.append(run)
+
+        runs = filter(
+            lambda r: r.videos
+            and all("twitch.tv" in urlparse(vid).netloc for vid in r.videos),
+            former_wrs,
+        )
+        return list(runs)
