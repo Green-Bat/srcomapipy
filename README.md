@@ -5,6 +5,14 @@ A python library for the [speedrun.com API](https://github.com/speedruncomorg/ap
 pip install srcomapipy
 ```
 ## Examples
+### Get World Records that may be at Risk on Twitch
+```python
+from srcompaipy.srcomapipy import SRC
+import srcomapipy.srctypes as st
+
+api = SRC(user_agent="username")
+at_risk list[st.Run] = api.get_at_risk_wrs(game_id="game_id")
+```
 ### Find a game:
 ```python
 from srcompaipy.srcomapipy import SRC

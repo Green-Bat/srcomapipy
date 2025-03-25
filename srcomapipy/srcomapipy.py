@@ -14,7 +14,8 @@ API_URL = "https://www.speedrun.com/api/v1/"
 # some variables have no values but still have a default
 # potential bug when using orderby category for get runs, not all runs are retrieved
 # TODO:
-#
+# [] Comprehensive docs
+# [] Change list returns to iterators
 
 
 class SRC:
@@ -472,14 +473,22 @@ class SRC:
         runs = [Run(r) for r in data]
 
         def key_func(run: Run, orderby: str):
-            if orderby in ["game", "category", "level", "platform", "region"]:
-                return run.__dict__[orderby].id
+            if orderby in ["game", "platform", "region"]:
+                comparator = run.__dict__[orderby].id
+            elif orderby in ["level", "category"]:
+                comparator = run.category_id
+                if run.level:
+                    comparator += f"_{run.level_id}"
+                for v in run.variables:
+                    if v[0].is_subcategory:
+                        comparator += f"_{v[1]}"
             elif orderby == "submitted":
-                return run.submission_date
+                comparator = run.submission_date
             elif orderby == "verify-date":
-                return run.verify_date
+                comparator = run.verify_date
             else:
-                return run.__dict__[orderby]
+                comparator = run.__dict__[orderby]
+            return comparator
 
         sorted_runs = []
         if time_sort:
@@ -548,7 +557,7 @@ class SRC:
             _type = "user-defined"
             if not v.user_defined:
                 _type = "pre-defined"
-                val = v.values[val]
+                val = v.values[val]  # get id of value
             _variables[v.id] = {"type": _type, "value": val}
         payload = {
             "run": {
@@ -589,7 +598,7 @@ class SRC:
         runs: list[Run] = self.get_runs(game_id=game_id)
 
         def key_func(r: Run):
-            comparator = f"{r.category_id}"
+            comparator = r.category_id
             for v in r.variables:
                 if v[0].is_subcategory:
                     comparator += f"_{v[1]}"
