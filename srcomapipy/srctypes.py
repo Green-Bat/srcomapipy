@@ -332,10 +332,12 @@ class Run:
                 var = self.category.variables_by_id[k]
                 val = var.values_by_id[v]
                 self.variables.append((var, val))
-        self.video_text: str = data["videos"].get("text", "")
-        self.videos: list[str] = [
-            link["uri"] for link in data["videos"].get("links", [])
-        ]
+
+        self.video_text: str = ""
+        self.videos: Optional[list[str]] = None
+        if data["videos"]:
+            self.video_text = data["videos"].get("text", "")
+            self.videos = [link["uri"] for link in data["videos"].get("links", [])]
         self.comment: str = data["comment"]
         self.status: str = data["status"]["status"]
         if self.status == "rejected":
