@@ -7,7 +7,6 @@ pip install srcomapipy
 ## Examples
 ### Get World Records that may be at Risk on Twitch
 A games ID can be found in it's stats page, alternatively search for the game through the [API](#find-a-game)
-![Image showing that a game's ID can be found in it's stats page](Game_ID_location.PNG)
 ```python
 from srcompaipy.srcomapipy import SRC
 import srcomapipy.srctypes as st
