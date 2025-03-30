@@ -367,7 +367,7 @@ class Run:
             self.verify_date = datetime.fromisoformat(data["status"]["verify-date"])
         if data["submitted"]:
             self.submission_date = datetime.fromisoformat(data["submitted"])
-
+        # ----
         self.players: list[User] = None
         if players:
             self.players = players
@@ -388,10 +388,10 @@ class Run:
         hours, remainder = divmod(td.seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
         milliseconds = round(td.microseconds / 1000)
-        formated = f"{minutes:02}:{seconds:02}.{milliseconds:03}"
+        formatted = f"{minutes:02}:{seconds:02}.{milliseconds:03}"
         if hours > 0:
-            formated = f"{hours}:" + formated
-        return formated
+            formatted = f"{hours}:{formatted}"
+        return formatted
 
     def primary_time(self) -> str:
         match self.time:

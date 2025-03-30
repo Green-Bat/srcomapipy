@@ -16,6 +16,7 @@ API_URL = "https://www.speedrun.com/api/v1/"
 # TODO:
 # [] Comprehensive docs
 # [] Change list returns to iterators
+# [] improve chache
 
 
 class SRC:
@@ -114,7 +115,15 @@ class SRC:
 
     def generic_get(
         self,
-        endpoint: str,
+        endpoint: Literal[
+            "developers",
+            "publishers",
+            "genres",
+            "gametypes",
+            "engines",
+            "platforms",
+            "regions",
+        ],
         id: str = "",
         orderby: Literal["name", "released"] = "name",
         direction: Literal["asc", "desc"] = "asc",
@@ -492,8 +501,9 @@ class SRC:
 
         sorted_runs = []
         if time_sort:
+            runs.sort(key=lambda r: key_func(r, orderby))
             for _, g in groupby(runs, key=lambda r: key_func(r, orderby)):
-                sorted_runs += sorted(list(g), key=lambda r: r._primary_time)
+                sorted_runs += sorted(g, key=lambda r: r._primary_time)
             return sorted_runs
         return runs
 
@@ -605,7 +615,7 @@ class SRC:
             return comparator
 
         former_wrs: list[Run] = []
-        runs = sorted(runs, key=key_func)
+        runs.sort(key=key_func)
         for _, g in groupby(runs, key=key_func):
             g: list[Run] = sorted(g, key=lambda r: r.date)
             latest_wr = g[0]

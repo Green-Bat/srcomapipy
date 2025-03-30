@@ -12,7 +12,7 @@ from srcompaipy.srcomapipy import SRC
 import srcomapipy.srctypes as st
 
 api = SRC(user_agent="username")
-at_risk list[st.Run] = api.get_at_risk_wrs(game_id="game_id")
+at_risk: list[st.Run] = api.get_at_risk_wrs(game_id="game_id")
 ```
 ### Find a game:
 ```python
