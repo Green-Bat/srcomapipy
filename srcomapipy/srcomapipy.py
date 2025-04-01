@@ -1,5 +1,5 @@
 import requests
-from typing import Literal, Optional
+from typing import Literal, Optional, Any
 from datetime import date
 from .srctypes import *
 from itertools import groupby
@@ -17,6 +17,7 @@ API_URL = "https://www.speedrun.com/api/v1/"
 # [] Comprehensive docs
 # [] Change list returns to iterators
 # [] improve chache
+# [x] at risk runs for user
 
 
 class SRC:
@@ -404,6 +405,24 @@ class SRC:
         data.pop("players")
         return Leaderboard(data, game, category, level, variables)
 
+    def _run_sort_func(self, run: Run, orderby: str) -> Any:
+        if orderby in ["game", "platform", "region"]:
+            comparator = run.__dict__[orderby].id
+        elif orderby in ["level", "category"]:
+            comparator = run.category_id
+            if run.level:
+                comparator += f"_{run.level_id}"
+            for v in run.variables:
+                if v[0].is_subcategory:
+                    comparator += f"_{v[1]}"
+        elif orderby == "submitted":
+            comparator = run.submission_date
+        elif orderby == "verify-date":
+            comparator = run.verify_date
+        else:
+            comparator = run.__dict__[orderby]
+        return comparator
+
     def get_runs(
         self,
         run_id: str = None,
@@ -481,28 +500,10 @@ class SRC:
         data = self.get(uri, payload)
         runs = [Run(r) for r in data]
 
-        def key_func(run: Run, orderby: str):
-            if orderby in ["game", "platform", "region"]:
-                comparator = run.__dict__[orderby].id
-            elif orderby in ["level", "category"]:
-                comparator = run.category_id
-                if run.level:
-                    comparator += f"_{run.level_id}"
-                for v in run.variables:
-                    if v[0].is_subcategory:
-                        comparator += f"_{v[1]}"
-            elif orderby == "submitted":
-                comparator = run.submission_date
-            elif orderby == "verify-date":
-                comparator = run.verify_date
-            else:
-                comparator = run.__dict__[orderby]
-            return comparator
-
         sorted_runs = []
         if time_sort:
-            runs.sort(key=lambda r: key_func(r, orderby))
-            for _, g in groupby(runs, key=lambda r: key_func(r, orderby)):
+            runs.sort(key=lambda r: self._run_sort_func(r, orderby))
+            for _, g in groupby(runs, key=lambda r: self._run_sort_func(r, orderby)):
                 sorted_runs += sorted(g, key=lambda r: r._primary_time)
             return sorted_runs
         return runs
@@ -602,21 +603,23 @@ class SRC:
             raise SRCAPIException(r.status_code, uri[len(API_URL) :], r.json())
         return Run(r.json()["data"])
 
+    def get_at_risk_runs(self, user_id: str) -> list[Run]:
+        runs: list[Run] = self.get_runs(user_id=user_id)
+        runs = filter(
+            lambda r: r.videos
+            and all("twitch.tv" in urlparse(vid).netloc for vid in r.videos),
+            runs,
+        )
+        return list(runs)
+
     def get_at_risk_wrs(self, game_id: str) -> list[Run]:
         """Gets all former World Records that only have Twitch links
         and may be at risk of being deleted"""
         runs: list[Run] = self.get_runs(game_id=game_id)
 
-        def key_func(r: Run):
-            comparator = r.category_id
-            for v in r.variables:
-                if v[0].is_subcategory:
-                    comparator += f"_{v[1]}"
-            return comparator
-
         former_wrs: list[Run] = []
-        runs.sort(key=key_func)
-        for _, g in groupby(runs, key=key_func):
+        runs.sort(key=lambda r: self._run_sort_func(r, "category"))
+        for _, g in groupby(runs, key=lambda r: self._run_sort_func(r, "category")):
             g: list[Run] = sorted(g, key=lambda r: r.date)
             latest_wr = g[0]
             former_wrs.append(g[0])
